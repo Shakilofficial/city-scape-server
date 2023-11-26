@@ -44,6 +44,7 @@ const client = new MongoClient(process.env.DB_URI, {
 async function run() {
   try {
     const usersCollection = client.db("cityScapeDb").collection("users");
+    const reviewsCollection = client.db("cityScapeDb").collection("reviews");
     const propertiesCollection = client
       .db("cityScapeDb")
       .collection("properties");
@@ -105,6 +106,17 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching properties:", error);
+        res.status(500).send({ error: "Internal Server Error" });
+      }
+    });
+
+    //get all reviews
+    app.get("/reviews", async (req, res) => {
+      try {
+        const result = await reviewsCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching reviews:", error);
         res.status(500).send({ error: "Internal Server Error" });
       }
     });
