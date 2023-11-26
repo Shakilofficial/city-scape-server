@@ -43,7 +43,10 @@ const client = new MongoClient(process.env.DB_URI, {
 });
 async function run() {
   try {
-
+    const usersCollection = client.db("cityScapeDb").collection("users");
+    const propertiesCollection = client
+      .db("cityScapeDb")
+      .collection("properties");
     // auth related api
     app.post("/jwt", async (req, res) => {
       const user = req.body;
@@ -95,6 +98,16 @@ async function run() {
       res.send(result);
     });
 
+    //get all Properties
+    app.get("/properties", async (req, res) => {
+      try {
+        const result = await propertiesCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching properties:", error);
+        res.status(500).send({ error: "Internal Server Error" });
+      }
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
