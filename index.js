@@ -45,6 +45,7 @@ async function run() {
   try {
     const usersCollection = client.db("cityScapeDb").collection("users");
     const reviewsCollection = client.db("cityScapeDb").collection("reviews");
+    const wishlistCollection = client.db("cityScapeDb").collection("wishlist");
     const propertiesCollection = client
       .db("cityScapeDb")
       .collection("properties");
@@ -127,6 +128,24 @@ async function run() {
         console.error("Error fetching reviews:", error);
         res.status(500).send({ error: "Internal Server Error" });
       }
+    });
+
+    // Get wishlist items
+    app.get("wishlist/", async (req, res) => {
+      const wishlistItems = await wishlistCollection.find().toArray();
+      res.json(wishlistItems);
+    });
+
+    // Toggle wishlist status
+    app.post("wishlist/:id", async (req, res) => {
+      const propertyId = req.params.id;
+      const { isInWishlist } = req.body;
+      const updatedItem = await wishlistCollection.findOneAndUpdate(
+        { propertyId: ObjectId(propertyId) },
+        { $set: { isInWishlist } },
+        { returnDocument: "after", upsert: true }
+      );
+      res.json({ isInWishlist: updatedItem.value.isInWishlist });
     });
 
     // Send a ping to confirm a successful connection
