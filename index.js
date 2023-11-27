@@ -46,6 +46,7 @@ async function run() {
     const usersCollection = client.db("cityScapeDb").collection("users");
     const reviewsCollection = client.db("cityScapeDb").collection("reviews");
     const wishlistCollection = client.db("cityScapeDb").collection("wishlist");
+    const buyingCollection = client.db("cityScapeDb").collection("buyings");
     const propertiesCollection = client
       .db("cityScapeDb")
       .collection("properties");
@@ -129,14 +130,13 @@ async function run() {
         res.status(500).send({ error: "Internal Server Error" });
       }
     });
-    
+
     //post review from the user
     app.post("/reviews", async (req, res) => {
       const reviewItem = req.body;
       const result = await reviewsCollection.insertOne(reviewItem);
       res.send(result);
     });
-
 
     // Get wishlist items
     app.get("/wishlist", async (req, res) => {
@@ -149,6 +149,45 @@ async function run() {
       const wishlistItem = req.body;
       const result = await wishlistCollection.insertOne(wishlistItem);
       res.send(result);
+    });
+    
+    //delete from wishlist
+    app.delete("/wishlist/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await wishlistCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    //buying collection
+    app.post("/make-offer", verifyToken, async (req, res) => {
+      try {
+        const { propertyId, offeredAmount, buyingDate, status, email, name } =
+          req.body;
+        const result = await buyingCollection.insertOne({
+          propertyId: new ObjectId(propertyId),
+          offeredAmount,
+          buyingDate,
+          status,
+          email,
+          name,
+        });
+
+        if (result.insertedId) {
+          res
+            .status(200)
+            .json({ success: true, message: "Offer made successfully" });
+        } else {
+          res
+            .status(500)
+            .json({ success: false, message: "Error making offer" });
+        }
+      } catch (error) {
+        console.error("Error making offer:", error);
+        res
+          .status(500)
+          .json({ success: false, message: "Internal Server Error" });
+      }
     });
 
     // Send a ping to confirm a successful connection
