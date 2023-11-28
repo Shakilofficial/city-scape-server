@@ -46,7 +46,7 @@ async function run() {
     const usersCollection = client.db("cityScapeDb").collection("users");
     const reviewsCollection = client.db("cityScapeDb").collection("reviews");
     const wishlistCollection = client.db("cityScapeDb").collection("wishlist");
-    const buyingCollection = client.db("cityScapeDb").collection("buyings");
+    const buyingCollection = client.db("cityScapeDb").collection("buying");
     const propertiesCollection = client
       .db("cityScapeDb")
       .collection("properties");
@@ -144,13 +144,20 @@ async function run() {
       res.json(wishlistItems);
     });
 
+    app.get("/wishlist/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await wishlistCollection.findOne(query);
+      res.send(result);
+    });
+
     // send data to wishlist
     app.post("/wishlist", async (req, res) => {
       const wishlistItem = req.body;
       const result = await wishlistCollection.insertOne(wishlistItem);
       res.send(result);
     });
-    
+
     //delete from wishlist
     app.delete("/wishlist/:id", async (req, res) => {
       const id = req.params.id;
@@ -160,17 +167,37 @@ async function run() {
     });
 
     //buying collection
-    app.post("/make-offer", verifyToken, async (req, res) => {
+    app.post("/make-offer", async (req, res) => {
       try {
-        const { propertyId, offeredAmount, buyingDate, status, email, name } =
-          req.body;
+        const buyingItem = req.body;
+        const {
+          propertyId,
+          offeredAmount,
+          buyingDate,
+          status,
+          buyerEmail,
+          buyerName,
+        } = buyingItem;
+        if (
+          !propertyId ||
+          !offeredAmount ||
+          !buyingDate ||
+          !status ||
+          !buyerEmail ||
+          !buyerName
+        ) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Invalid buying item data" });
+        }
+
         const result = await buyingCollection.insertOne({
           propertyId: new ObjectId(propertyId),
           offeredAmount,
           buyingDate,
           status,
-          email,
-          name,
+          buyerEmail,
+          buyerName,
         });
 
         if (result.insertedId) {
