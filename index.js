@@ -144,18 +144,24 @@ async function run() {
       res.json(wishlistItems);
     });
 
-    app.get("/wishlist/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const result = await wishlistCollection.findOne(query);
-      res.send(result);
-    });
-
     // send data to wishlist
     app.post("/wishlist", async (req, res) => {
       const wishlistItem = req.body;
       const result = await wishlistCollection.insertOne(wishlistItem);
       res.send(result);
+    });
+    /*     app.get("/wishlist/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await wishlistCollection.findOne(query);
+      res.send(result);
+    }); */
+
+    app.get("/wishlist/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const wishlistItems = await wishlistCollection.find(query).toArray();
+      res.send(wishlistItems);
     });
 
     //delete from wishlist
@@ -167,32 +173,32 @@ async function run() {
     });
 
     //buying collection
+    app.get("/make-offer", async (req, res) => {
+      const buyingItems = await buyingCollection.find().toArray();
+      res.json(buyingItems);
+    });
+
     app.post("/make-offer", async (req, res) => {
       try {
         const buyingItem = req.body;
         const {
           propertyId,
+          title,
+          location,
+          image,
           offeredAmount,
           buyingDate,
           status,
           buyerEmail,
           buyerName,
         } = buyingItem;
-        if (
-          !propertyId ||
-          !offeredAmount ||
-          !buyingDate ||
-          !status ||
-          !buyerEmail ||
-          !buyerName
-        ) {
-          return res
-            .status(400)
-            .json({ success: false, message: "Invalid buying item data" });
-        }
 
+        // Insert the buying item into the collection
         const result = await buyingCollection.insertOne({
           propertyId: new ObjectId(propertyId),
+          title,
+          location,
+          image,
           offeredAmount,
           buyingDate,
           status,
