@@ -120,6 +120,13 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/reviews/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const reviewItems = await reviewsCollection.find(query).toArray();
+      res.send(reviewItems);
+    });
+
     //get all reviews
     app.get("/reviews", async (req, res) => {
       try {
@@ -135,6 +142,13 @@ async function run() {
     app.post("/reviews", async (req, res) => {
       const reviewItem = req.body;
       const result = await reviewsCollection.insertOne(reviewItem);
+      res.send(result);
+    });
+    //delete from reviews
+    app.delete("/reviews/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await reviewsCollection.deleteOne(query);
       res.send(result);
     });
 
@@ -193,7 +207,6 @@ async function run() {
           buyerName,
         } = buyingItem;
 
-        // Insert the buying item into the collection
         const result = await buyingCollection.insertOne({
           propertyId: new ObjectId(propertyId),
           title,
