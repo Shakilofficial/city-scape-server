@@ -6,6 +6,7 @@ const cookieParser = require("cookie-parser");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 const morgan = require("morgan");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
 // middleware
@@ -434,6 +435,30 @@ async function run() {
         res
           .status(500)
           .json({ success: false, message: "Internal Server Error" });
+      }
+    });
+
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price, propertyId } = req.body;
+      try {
+        const amount = parseInt(price * 100);
+        console.log(amount, "Amount for the intent");
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: amount,
+          currency: "usd",
+          payment_method_types: ["card"],
+        });
+        await buyingCollection.updateOne(
+          { _id: new ObjectId(propertyId) },
+          { $set: { status: "Bought", transactionId: paymentIntent.id } }
+        );
+
+        res.send({
+          client_secret: paymentIntent.client_secret,
+        });
+      } catch (error) {
+        console.error("Error creating payment intent:", error.message);
+        res.status(500).json({ error: "Internal Server Error" });
       }
     });
 
