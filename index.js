@@ -18,6 +18,7 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 app.use(morgan("dev"));
+
 const verifyToken = async (req, res, next) => {
   const token = req.cookies?.token;
   console.log(token);
@@ -82,6 +83,42 @@ async function run() {
       }
     });
 
+    //user Collection
+    app.get("/users", verifyToken, async (req, res) => {
+      console.log(req.headers);
+      const result = await usersCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.get("/users/admin/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      let admin = false;
+      if (user) {
+        admin = user.role === "admin";
+      }
+      res.send({ admin });
+    });
+
+    app.get("/users/agent/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      let agent = false;
+      if (user) {
+        agent = user.role === "agent";
+      }
+      res.send({ agent });
+    });
+
+    app.get("/users/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await usersCollection.findOne(query);
+      res.send(result);
+    });
+
     // Save or modify user email, status in DB
     app.put("/users/:email", async (req, res) => {
       const email = req.params.email;
@@ -101,6 +138,37 @@ async function run() {
       res.send(result);
     });
 
+    app.patch("/users/admin/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          role: "admin",
+        },
+      };
+      const result = await usersCollection.updateOne(query, updatedDoc);
+      res.send(result);
+    });
+
+    app.patch("/users/agent/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          role: "agent",
+        },
+      };
+      const result = await usersCollection.updateOne(query, updatedDoc);
+      res.send(result);
+    });
+
+    app.delete("/users/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await usersCollection.deleteOne(query);
+      res.send(result);
+    });
+
     //get all Properties
     app.get("/properties", async (req, res) => {
       try {
@@ -113,6 +181,14 @@ async function run() {
     });
 
     //get single Properties
+
+    app.get("/properties/agent/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const result = await propertiesCollection.find(query).toArray();
+      res.send(result);
+    });
+
     app.get("/properties/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -120,6 +196,122 @@ async function run() {
       res.send(result);
     });
 
+    //update properties info
+    app.patch("/properties/update/:id", async (req, res) => {
+      const propertyId = req.params.id;
+      const { image, title, location, price } = req.body;
+      try {
+        const query = { _id: new ObjectId(propertyId) };
+        const update = {
+          $set: {
+            image,
+            title,
+            location,
+            price,
+          },
+        };
+        const result = await propertiesCollection.updateOne(query, update);
+        if (result.modifiedCount > 0) {
+          res.send({ success: true });
+        } else {
+          res.status(404).send({ error: "Property not found" });
+        }
+      } catch (error) {
+        console.error("Error updating property:", error);
+        res.status(500).send({ error: "Internal Server Error" });
+      }
+    });
+
+    //update the status of the property
+    app.patch("/properties/verify/:id", async (req, res) => {
+      const propertyId = req.params.id;
+      try {
+        const query = { _id: new ObjectId(propertyId) };
+        const update = { $set: { status: "Verified" } };
+        const result = await propertiesCollection.updateOne(query, update);
+        if (result.modifiedCount > 0) {
+          res.send({ success: true });
+        } else {
+          res.status(404).send({ error: "Property not found" });
+        }
+      } catch (error) {
+        console.error("Error verifying property:", error);
+        res.status(500).send({ error: "Internal Server Error" });
+      }
+    });
+
+    app.patch("/properties/reject/:id", async (req, res) => {
+      const propertyId = req.params.id;
+      try {
+        const query = { _id: new ObjectId(propertyId) };
+        const update = { $set: { status: "Rejected" } };
+        const result = await propertiesCollection.updateOne(query, update);
+
+        if (result.modifiedCount > 0) {
+          res.send({ success: true });
+        } else {
+          res.status(404).send({ error: "Property not found" });
+        }
+      } catch (error) {
+        console.error("Error rejecting property:", error);
+        res.status(500).send({ error: "Internal Server Error" });
+      }
+    });
+
+    app.patch("/accept-offer/:id", async (req, res) => {
+      const id = req.params.id;
+      try {
+        await buyingCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { status: "Accepted" } }
+        );
+        await buyingCollection.updateMany(
+          {
+            propertyId: req.body.propertyId,
+            _id: { $ne: new ObjectId(id) },
+          },
+          { $set: { status: "Rejected" } }
+        );
+        res
+          .status(200)
+          .json({ success: true, message: "Offer accepted successfully" });
+      } catch (error) {
+        console.error("Error accepting offer:", error.message);
+        res
+          .status(500)
+          .json({ success: false, message: "Internal Server Error" });
+      }
+    });
+
+    app.patch("/reject-offer/:id", async (req, res) => {
+      const id = req.params.id;
+      try {
+        await buyingCollection.updateMany(
+          {
+            propertyId: req.body.propertyId,
+            _id: { $ne: new ObjectId(id) },
+          },
+          { $set: { status: "Rejected" } }
+        );
+        res
+          .status(200)
+          .json({ success: true, message: "Offer accepted successfully" });
+      } catch (error) {
+        console.error("Error accepting offer:", error.message);
+        res
+          .status(500)
+          .json({ success: false, message: "Internal Server Error" });
+      }
+    });
+
+    app.delete("/properties/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await propertiesCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    //get reviews bt email
     app.get("/reviews/:email", async (req, res) => {
       const email = req.params.email;
       const query = { email: email };
@@ -192,6 +384,13 @@ async function run() {
       res.json(buyingItems);
     });
 
+    app.get("/make-offer/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { buyerEmail: email };
+      const buyingItems = await buyingCollection.find(query).toArray();
+      res.send(buyingItems);
+    });
+
     app.post("/make-offer", async (req, res) => {
       try {
         const buyingItem = req.body;
@@ -200,6 +399,7 @@ async function run() {
           title,
           location,
           image,
+          agent_name,
           offeredAmount,
           buyingDate,
           status,
@@ -212,6 +412,7 @@ async function run() {
           title,
           location,
           image,
+          agent_name,
           offeredAmount,
           buyingDate,
           status,
