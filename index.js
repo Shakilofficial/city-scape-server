@@ -11,7 +11,11 @@ const port = process.env.PORT || 5000;
 
 // middleware
 const corsOptions = {
-  origin: ["http://localhost:5173", "http://localhost:5174","https://cityscape-93609.web.app"],
+  origin: [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "https://cityscape-93609.web.app",
+  ],
   credentials: true,
   optionSuccessStatus: 200,
 };
@@ -303,6 +307,14 @@ async function run() {
           .status(500)
           .json({ success: false, message: "Internal Server Error" });
       }
+    });
+
+    app.post("/add-properties", async (req, res) => {
+      const property = req.body;
+      console.log(property);
+      const result = await propertiesCollection.insertOne(property);
+
+      res.send(result);
     });
 
     app.delete("/properties/:id", async (req, res) => {
